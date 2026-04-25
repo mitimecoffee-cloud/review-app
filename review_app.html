@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review Generator</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:sans-serif;background:#f7f3ff;min-height:100vh}
+:root{
+  --pink:#ff6b9d;--purple:#a855f7;--coral:#ff8c69;
+  --grad:linear-gradient(135deg,#ff6b9d,#a855f7);
+  --card:#fff;--text:#1a1a2e;--muted:#666;--border:#e8e0f5;
+}
+.app{max-width:480px;margin:0 auto;min-height:100vh;background:#fff;position:relative;overflow:hidden}
+.screen{display:none;flex-direction:column;min-height:100vh}
+.screen.active{display:flex}
+
+/* Header */
+.hdr{background:var(--grad);padding:20px 16px 16px;color:#fff;text-align:center}
+.hdr .brand-name{font-size:22px;font-weight:700;letter-spacing:-.5px}
+.hdr .brand-sub{font-size:13px;opacity:.85;margin-top:2px}
+.hdr .lang-bar{display:flex;gap:6px;justify-content:center;margin-top:12px}
+.lang-btn{background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.4);color:#fff;padding:5px 14px;border-radius:20px;font-size:12px;cursor:pointer;transition:.2s}
+.lang-btn.active{background:#fff;color:var(--purple);font-weight:600}
+
+/* Sections */
+.section{padding:20px 16px}
+.section-title{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+
+/* Platform grid */
+.platform-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.platform-card{border:2px solid var(--border);border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;transition:.2s;background:#fff}
+.platform-card:hover{border-color:var(--purple);background:#faf5ff}
+.platform-card.selected{border-color:var(--purple);background:linear-gradient(135deg,#faf5ff,#fdf2ff)}
+.platform-card .p-icon{font-size:26px;margin-bottom:4px}
+.platform-card .p-name{font-size:13px;font-weight:600;color:var(--text)}
+
+/* Photo upload */
+.upload-box{border:2.5px dashed var(--border);border-radius:16px;padding:32px 16px;text-align:center;cursor:pointer;transition:.2s;background:#faf5ff}
+.upload-box:hover{border-color:var(--purple);background:#f3e8ff}
+.upload-box .u-icon{font-size:36px;margin-bottom:8px}
+.upload-box .u-text{font-size:14px;color:var(--muted)}
+.upload-preview{width:100%;border-radius:16px;max-height:220px;object-fit:cover;display:none}
+#fileInput{display:none}
+
+/* Generate btn */
+.gen-btn{margin:0 16px 16px;background:var(--grad);color:#fff;border:none;width:calc(100% - 32px);padding:15px;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;transition:.2s}
+.gen-btn:hover{opacity:.9;transform:translateY(-1px)}
+.gen-btn:disabled{opacity:.5;transform:none;cursor:not-allowed}
+
+/* Result screen */
+.result-card{margin:16px;border-radius:16px;overflow:hidden;border:1.5px solid var(--border)}
+.result-img-wrap{position:relative;background:#f0e8ff}
+.result-img-wrap img{width:100%;max-height:260px;object-fit:cover}
+.result-overlay{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.7));padding:12px;color:#fff}
+.result-tag{font-size:11px;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:20px;padding:3px 10px;display:inline-block;margin-bottom:4px}
+.result-title{font-size:17px;font-weight:700;line-height:1.3}
+.result-body{padding:14px;background:#fff}
+.result-caption{font-size:14px;color:#333;line-height:1.7;white-space:pre-wrap}
+.result-hashtags{margin-top:10px;font-size:13px;color:var(--purple);font-weight:500;line-height:1.8}
+.action-row{display:flex;gap:8px;padding:0 16px 16px}
+.action-btn{flex:1;padding:12px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:.2s}
+.copy-btn{background:#f3e8ff;color:var(--purple)}
+.copy-btn:hover{background:#e9d5ff}
+.share-hint{background:var(--grad);color:#fff}
+.back-btn{margin:0 16px 16px;background:none;border:1.5px solid var(--border);width:calc(100% - 32px);padding:12px;border-radius:12px;font-size:14px;color:var(--muted);cursor:pointer}
+
+/* Loading */
+.loading-screen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px}
+.loading-screen.active{display:flex}
+.spinner{width:48px;height:48px;border:4px solid #f3e8ff;border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:15px;color:var(--muted)}
+
+/* Admin Panel */
+.admin-screen{background:#f7f3ff}
+.admin-hdr{background:var(--grad);padding:20px 16px;color:#fff;display:flex;align-items:center;justify-content:space-between}
+.admin-hdr h2{font-size:18px;font-weight:700}
+.admin-back{background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:13px}
+.admin-section{background:#fff;border-radius:14px;margin:12px;padding:16px}
+.admin-section h3{font-size:14px;font-weight:600;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.4px}
+.field-group{margin-bottom:12px}
+.field-group label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+.field-group input,.field-group textarea,.field-group select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;color:var(--text);outline:none;transition:.2s}
+.field-group input:focus,.field-group textarea:focus{border-color:var(--purple)}
+.field-group textarea{resize:vertical;min-height:72px}
+.product-item{display:flex;align-items:center;gap:8px;padding:10px;background:#faf5ff;border-radius:10px;margin-bottom:8px;border:1px solid var(--border)}
+.product-item .p-info{flex:1}
+.product-item .p-info .p-title{font-size:14px;font-weight:600;color:var(--text)}
+.product-item .p-info .p-desc{font-size:12px;color:var(--muted)}
+.product-del{background:#fee2e2;border:none;color:#dc2626;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.add-product-btn{width:100%;padding:10px;border:2px dashed var(--border);background:none;border-radius:10px;color:var(--purple);font-size:14px;font-weight:600;cursor:pointer;transition:.2s}
+.add-product-btn:hover{background:#faf5ff;border-color:var(--purple)}
+.save-btn{width:100%;padding:13px;background:var(--grad);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat-card{background:#faf5ff;border-radius:10px;padding:12px;text-align:center}
+.stat-num{font-size:24px;font-weight:700;color:var(--purple)}
+.stat-label{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* Color picker row */
+.color-row{display:flex;gap:8px;flex-wrap:wrap}
+.color-dot{width:30px;height:30px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:.2s}
+.color-dot.selected{border-color:#333;transform:scale(1.15)}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;z-index:999;opacity:0;transition:.3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+
+/* Admin entry */
+.admin-entry{position:fixed;bottom:16px;right:16px;background:var(--grad);color:#fff;border:none;border-radius:50%;width:44px;height:44px;font-size:18px;cursor:pointer;z-index:100;box-shadow:0 4px 12px rgba(168,85,247,.4)}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<!-- ===== CUSTOMER SCREENS ===== -->
+
+<!-- Screen 1: Language + Platform + Upload -->
+<div class="screen active" id="screen-main">
+  <div class="hdr">
+    <div class="brand-name" id="disp-brand">✨ Your Brand</div>
+    <div class="brand-sub" id="disp-tagline">Scan. Snap. Share the love!</div>
+    <div class="lang-bar">
+      <button class="lang-btn active" onclick="setLang('zh')">中文</button>
+      <button class="lang-btn" onclick="setLang('en')">English</button>
+      <button class="lang-btn" onclick="setLang('ms')">BM</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title" id="lbl-choose-platform">选择平台</div>
+    <div class="platform-grid" id="platform-grid">
+      <div class="platform-card" onclick="selectPlatform(this,'xiaohongshu')">
+        <div class="p-icon">📕</div>
+        <div class="p-name">小红书</div>
+      </div>
+      <div class="platform-card" onclick="selectPlatform(this,'instagram')">
+        <div class="p-icon">📸</div>
+        <div class="p-name">Instagram</div>
+      </div>
+      <div class="platform-card" onclick="selectPlatform(this,'tiktok')">
+        <div class="p-icon">🎵</div>
+        <div class="p-name">TikTok</div>
+      </div>
+      <div class="platform-card" onclick="selectPlatform(this,'lemon8')">
+        <div class="p-icon">🍋</div>
+        <div class="p-name">Lemon8</div>
+      </div>
+      <div class="platform-card" onclick="selectPlatform(this,'facebook')">
+        <div class="p-icon">👥</div>
+        <div class="p-name">Facebook</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" style="padding-top:0">
+    <div class="section-title" id="lbl-upload-photo">上传照片</div>
+    <div class="upload-box" id="upload-box" onclick="document.getElementById('fileInput').click()">
+      <div class="u-icon">📷</div>
+      <div class="u-text" id="lbl-upload-hint">点击拍照或上传</div>
+    </div>
+    <img id="upload-preview" class="upload-preview" />
+    <input type="file" id="fileInput" accept="image/*" capture="environment" onchange="handlePhoto(event)">
+  </div>
+
+  <button class="gen-btn" id="gen-btn" onclick="generate()" disabled id="gen-btn">✨ <span id="lbl-gen-btn">生成内容</span></button>
+</div>
+
+<!-- Screen 2: Loading -->
+<div class="loading-screen" id="screen-loading">
+  <div class="spinner"></div>
+  <div class="loading-text" id="lbl-loading">AI 正在生成你的内容...</div>
+</div>
+
+<!-- Screen 3: Result -->
+<div class="screen" id="screen-result">
+  <div class="hdr" style="text-align:left;padding-bottom:12px">
+    <div style="font-size:13px;opacity:.8" id="lbl-result-ready">你的内容已准备好 🎉</div>
+    <div style="font-size:18px;font-weight:700;margin-top:2px" id="lbl-result-title">小红书风格帖子</div>
+  </div>
+
+  <div class="result-card">
+    <div class="result-img-wrap">
+      <img id="result-photo" src="" style="width:100%;max-height:260px;object-fit:cover">
+      <div class="result-overlay">
+        <div class="result-tag" id="result-tag-platform">📕 小红书</div>
+        <div class="result-title" id="result-headline"></div>
+      </div>
+    </div>
+    <div class="result-body">
+      <div class="result-caption" id="result-caption"></div>
+      <div class="result-hashtags" id="result-hashtags"></div>
+    </div>
+  </div>
+
+  <div class="action-row">
+    <button class="action-btn copy-btn" onclick="copyCaption()" id="lbl-copy-btn">📋 复制文案</button>
+    <button class="action-btn share-hint" id="lbl-open-btn" onclick="openPlatform()">打开平台 →</button>
+  </div>
+  <button class="back-btn" onclick="goBack()" id="lbl-back-btn">← 重新生成</button>
+</div>
+
+<!-- ===== ADMIN PANEL ===== -->
+<div class="screen" id="screen-admin">
+  <div class="admin-hdr">
+    <h2>⚙️ 商家后台</h2>
+    <button class="admin-back" onclick="showScreen('screen-main')">返回</button>
+  </div>
+  <div style="overflow-y:auto;padding-bottom:24px">
+
+    <!-- Stats -->
+    <div class="admin-section">
+      <h3>📊 数据总览</h3>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-num" id="stat-scans">0</div><div class="stat-label">总扫码次数</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-gen">0</div><div class="stat-label">内容生成次数</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-copy">0</div><div class="stat-label">文案复制次数</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-top">小红书</div><div class="stat-label">最热门平台</div></div>
+      </div>
+    </div>
+
+    <!-- Brand Info -->
+    <div class="admin-section">
+      <h3>🏷️ 品牌资料</h3>
+      <div class="field-group">
+        <label>品牌名称</label>
+        <input type="text" id="admin-brand" value="Your Brand" placeholder="例：Nana Cafe">
+      </div>
+      <div class="field-group">
+        <label>标语 / Tagline</label>
+        <input type="text" id="admin-tagline" value="Scan. Snap. Share the love!" placeholder="一句话描述你的品牌">
+      </div>
+      <div class="field-group">
+        <label>品牌简介（AI 生成时参考）</label>
+        <textarea id="admin-bio" placeholder="例：我们是位于KL的精品咖啡馆，主打手冲咖啡和精致甜点...">我们是一间充满温度的品牌，欢迎每一位来访的客人。</textarea>
+      </div>
+      <div class="field-group">
+        <label>主题颜色</label>
+        <div class="color-row">
+          <div class="color-dot selected" style="background:linear-gradient(135deg,#ff6b9d,#a855f7)" onclick="setColor(this,'#a855f7','#ff6b9d')"></div>
+          <div class="color-dot" style="background:linear-gradient(135deg,#f97316,#ef4444)" onclick="setColor(this,'#ef4444','#f97316')"></div>
+          <div class="color-dot" style="background:linear-gradient(135deg,#06b6d4,#3b82f6)" onclick="setColor(this,'#3b82f6','#06b6d4')"></div>
+          <div class="color-dot" style="background:linear-gradient(135deg,#10b981,#06b6d4)" onclick="setColor(this,'#10b981','#06b6d4')"></div>
+          <div class="color-dot" style="background:linear-gradient(135deg,#f59e0b,#ef4444)" onclick="setColor(this,'#f59e0b','#ef4444')"></div>
+          <div class="color-dot" style="background:linear-gradient(135deg,#ec4899,#8b5cf6)" onclick="setColor(this,'#ec4899','#8b5cf6')"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Products -->
+    <div class="admin-section">
+      <h3>🛍️ 产品 / 服务</h3>
+      <div id="product-list"></div>
+      <button class="add-product-btn" onclick="addProduct()">+ 添加产品或服务</button>
+    </div>
+
+    <!-- Prompt Style -->
+    <div class="admin-section">
+      <h3>✍️ 文案风格</h3>
+      <div class="field-group">
+        <label>风格偏好</label>
+        <select id="admin-style">
+          <option value="cute">可爱活泼 🌸</option>
+          <option value="elegant">高端优雅 ✨</option>
+          <option value="casual">轻松随意 😊</option>
+          <option value="hype">热情推荐 🔥</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>额外指引（可选）</label>
+        <textarea id="admin-extra" placeholder="例：请一定要提到我们的招牌拿铁、提到KL SS2分店..."></textarea>
+      </div>
+    </div>
+
+    <div style="padding:0 12px">
+      <button class="save-btn" onclick="saveAdmin()">💾 保存设置</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- .app -->
+
+<div class="toast" id="toast"></div>
+<button class="admin-entry" onclick="showScreen('screen-admin')" title="Admin">⚙</button>
+
+<script>
+const CLAUDE_MODEL = "claude-sonnet-4-20250514";
+
+let cfg = {
+  brand:"Your Brand",
+  tagline:"Scan. Snap. Share the love!",
+  bio:"我们是一间充满温度的品牌，欢迎每一位来访的客人。",
+  products:[
+    {name:"招牌特饮",desc:"店内人气第一的饮品"},
+    {name:"精致甜点",desc:"每日新鲜制作"}
+  ],
+  style:"cute",
+  extra:"",
+  color1:"#a855f7",
+  color2:"#ff6b9d"
+};
+
+let stats = {scans:1,gen:0,copy:0,topPlatform:"小红书"};
+let selectedPlatform="";
+let uploadedPhoto=null;
+let uploadedBase64=null;
+let currentLang="zh";
+let generatedCaption="";
+let platformLinks={xiaohongshu:"https://www.xiaohongshu.com/",instagram:"https://www.instagram.com/",tiktok:"https://www.tiktok.com/",lemon8:"https://www.lemon8-app.com/",facebook:"https://www.facebook.com/"};
+
+const i18n={
+  zh:{choosePlatform:"选择平台",uploadPhoto:"上传照片",uploadHint:"点击拍照或上传",genBtn:"生成内容",loading:"AI 正在生成你的内容...",resultReady:"你的内容已准备好 🎉",copyBtn:"📋 复制文案",openBtn:"打开平台 →",backBtn:"← 重新生成",copied:"已复制！"},
+  en:{choosePlatform:"Choose Platform",uploadPhoto:"Upload Photo",uploadHint:"Tap to take or upload a photo",genBtn:"Generate Content",loading:"AI is creating your content...",resultReady:"Your content is ready 🎉",copyBtn:"📋 Copy Caption",openBtn:"Open Platform →",backBtn:"← Try Again",copied:"Copied!"},
+  ms:{choosePlatform:"Pilih Platform",uploadPhoto:"Muat Naik Foto",uploadHint:"Ketik untuk ambil atau muat naik foto",genBtn:"Jana Kandungan",loading:"AI sedang menjana kandungan anda...",resultReady:"Kandungan anda sudah siap 🎉",copyBtn:"📋 Salin Kapsyen",openBtn:"Buka Platform →",backBtn:"← Cuba Lagi",copied:"Disalin!"}
+};
+
+const platformNames={xiaohongshu:"📕 小红书",instagram:"📸 Instagram",tiktok:"🎵 TikTok",lemon8:"🍋 Lemon8",facebook:"👥 Facebook"};
+
+function setLang(l){
+  currentLang=l;
+  document.querySelectorAll(".lang-btn").forEach(b=>b.classList.remove("active"));
+  event.target.classList.add("active");
+  const t=i18n[l];
+  document.getElementById("lbl-choose-platform").textContent=t.choosePlatform;
+  document.getElementById("lbl-upload-photo").textContent=t.uploadPhoto;
+  document.getElementById("lbl-upload-hint").textContent=t.uploadHint;
+  document.getElementById("lbl-gen-btn").textContent=t.genBtn;
+  document.getElementById("lbl-loading").textContent=t.loading;
+  document.getElementById("lbl-result-ready").textContent=t.resultReady;
+  document.getElementById("lbl-copy-btn").textContent=t.copyBtn;
+  document.getElementById("lbl-open-btn").textContent=t.openBtn;
+  document.getElementById("lbl-back-btn").textContent=t.backBtn;
+}
+
+function selectPlatform(el,name){
+  document.querySelectorAll(".platform-card").forEach(c=>c.classList.remove("selected"));
+  el.classList.add("selected");
+  selectedPlatform=name;
+  checkReady();
+}
+
+function handlePhoto(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  uploadedPhoto=file;
+  const reader=new FileReader();
+  reader.onload=r=>{
+    uploadedBase64=r.result.split(",")[1];
+    const prev=document.getElementById("upload-preview");
+    prev.src=r.result;
+    prev.style.display="block";
+    document.getElementById("upload-box").style.display="none";
+    document.getElementById("result-photo").src=r.result;
+    checkReady();
+  };
+  reader.readAsDataURL(file);
+}
+
+function checkReady(){
+  document.getElementById("gen-btn").disabled=!(selectedPlatform&&uploadedPhoto);
+}
+
+async function generate(){
+  showScreen("screen-loading");
+  stats.gen++;
+
+  const langMap={zh:"中文（简体）",en:"English",ms:"Bahasa Malaysia"};
+  const styleMap={cute:"可爱活泼，多用emoji，充满少女心",elegant:"高端优雅，简洁有质感",casual:"轻松随意，像朋友聊天",hype:"热情推荐，充满感叹号和能量"};
+  const platStyle={xiaohongshu:"小红书风格：标题吸引眼球，正文分段清晰，emoji丰富，结尾3-5个相关hashtag，整体像一篇图文笔记",instagram:"Instagram风格：简洁有力，英文为主，hashtag放结尾",tiktok:"TikTok风格：口语化，前两句要抓注意力，像视频caption",lemon8:"Lemon8风格：生活感强，图文并茂感觉，hashtag丰富",facebook:"Facebook风格：友好亲切，适合分享给朋友，不用太多hashtag"};
+  const lang=langMap[currentLang];
+  const platS=platStyle[selectedPlatform]||"";
+  const styleS=styleMap[cfg.style]||"";
+  const products=cfg.products.map(p=>`${p.name}（${p.desc}）`).join("、");
+
+  const prompt=`你是一个专业的社交媒体文案写手。请根据以下信息生成一篇${platformNames[selectedPlatform]}的帖子。
+
+品牌：${cfg.brand}
+品牌简介：${cfg.bio}
+主要产品/服务：${products}
+额外要求：${cfg.extra||"无"}
+
+平台风格要求：${platS}
+文案风格：${styleS}
+语言：请用${lang}写作
+
+请生成：
+1. 一个吸引人的标题（不超过20字）
+2. 正文内容（自然融入品牌和产品）
+3. 相关hashtag（5-8个）
+
+请严格按以下JSON格式返回，不要有其他文字：
+{"headline":"标题","caption":"正文内容","hashtags":"#tag1 #tag2 #tag3"}`;
+
+  try {
+    const msgs=[{
+      role:"user",
+      content:[
+        {type:"image",source:{type:"base64",media_type:"image/jpeg",data:uploadedBase64}},
+        {type:"text",text:prompt}
+      ]
+    }];
+
+    const resp=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:CLAUDE_MODEL,max_tokens:1000,messages:msgs})
+    });
+    const data=await resp.json();
+    const raw=data.content.map(i=>i.text||"").join("");
+    const clean=raw.replace(/```json|```/g,"").trim();
+    let parsed;
+    try{parsed=JSON.parse(clean);}catch(e){parsed={headline:cfg.brand,caption:clean,hashtags:""};}
+
+    document.getElementById("result-headline").textContent=parsed.headline||"";
+    generatedCaption=(parsed.caption||"")+(parsed.hashtags?"\n\n"+parsed.hashtags:"");
+    document.getElementById("result-caption").textContent=parsed.caption||"";
+    document.getElementById("result-hashtags").textContent=parsed.hashtags||"";
+    document.getElementById("result-tag-platform").textContent=platformNames[selectedPlatform]||selectedPlatform;
+    const titleMap={xiaohongshu:"小红书风格笔记",instagram:"Instagram Caption",tiktok:"TikTok Caption",lemon8:"Lemon8 Post",facebook:"Facebook Post"};
+    document.getElementById("lbl-result-title").textContent=titleMap[selectedPlatform]||"Post";
+
+    showScreen("screen-result");
+  } catch(err){
+    showToast("生成失败，请重试");
+    showScreen("screen-main");
+  }
+}
+
+function copyCaption(){
+  navigator.clipboard.writeText(generatedCaption).then(()=>{
+    stats.copy++;
+    showToast(i18n[currentLang].copied);
+  }).catch(()=>showToast(i18n[currentLang].copied));
+}
+
+function openPlatform(){
+  const url=platformLinks[selectedPlatform]||"#";
+  window.open(url,"_blank");
+}
+
+function goBack(){
+  uploadedPhoto=null;uploadedBase64=null;selectedPlatform="";
+  document.getElementById("upload-preview").style.display="none";
+  document.getElementById("upload-box").style.display="block";
+  document.getElementById("fileInput").value="";
+  document.querySelectorAll(".platform-card").forEach(c=>c.classList.remove("selected"));
+  document.getElementById("gen-btn").disabled=true;
+  showScreen("screen-main");
+}
+
+function showScreen(id){
+  document.querySelectorAll(".screen,.loading-screen").forEach(s=>{
+    s.classList.remove("active");
+  });
+  document.getElementById(id).classList.add("active");
+}
+
+function showToast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg;t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2200);
+}
+
+// Admin
+function renderProducts(){
+  const list=document.getElementById("product-list");
+  list.innerHTML=cfg.products.map((p,i)=>`
+    <div class="product-item">
+      <div class="p-info">
+        <div class="p-title">${p.name}</div>
+        <div class="p-desc">${p.desc}</div>
+      </div>
+      <button class="product-del" onclick="deleteProduct(${i})">×</button>
+    </div>
+  `).join("");
+}
+
+function addProduct(){
+  const name=prompt("产品/服务名称：");
+  if(!name)return;
+  const desc=prompt("简短描述：")||"";
+  cfg.products.push({name,desc});
+  renderProducts();
+}
+
+function deleteProduct(i){
+  cfg.products.splice(i,1);
+  renderProducts();
+}
+
+function saveAdmin(){
+  cfg.brand=document.getElementById("admin-brand").value||cfg.brand;
+  cfg.tagline=document.getElementById("admin-tagline").value||cfg.tagline;
+  cfg.bio=document.getElementById("admin-bio").value||cfg.bio;
+  cfg.style=document.getElementById("admin-style").value;
+  cfg.extra=document.getElementById("admin-extra").value;
+  document.getElementById("disp-brand").textContent="✨ "+cfg.brand;
+  document.getElementById("disp-tagline").textContent=cfg.tagline;
+  showToast("✅ 设置已保存！");
+  setTimeout(()=>showScreen("screen-main"),800);
+}
+
+function setColor(el,c1,c2){
+  document.querySelectorAll(".color-dot").forEach(d=>d.classList.remove("selected"));
+  el.classList.add("selected");
+  cfg.color1=c1;cfg.color2=c2;
+  document.documentElement.style.setProperty("--purple",c1);
+  document.documentElement.style.setProperty("--pink",c2);
+  document.documentElement.style.setProperty("--grad",`linear-gradient(135deg,${c2},${c1})`);
+}
+
+function updateStats(){
+  document.getElementById("stat-scans").textContent=stats.scans;
+  document.getElementById("stat-gen").textContent=stats.gen;
+  document.getElementById("stat-copy").textContent=stats.copy;
+  document.getElementById("stat-top").textContent=stats.topPlatform;
+}
+
+document.getElementById("screen-admin").addEventListener("click",updateStats);
+renderProducts();
+</script>
+</body>
+</html>
